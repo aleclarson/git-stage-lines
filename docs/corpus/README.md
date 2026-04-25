@@ -11,6 +11,7 @@ The corpus is organized by patch shape:
 3. [Replacement patches](03-replacement-patches.md)
 4. [Multi-hunk patches](04-multi-hunk-patches.md)
 5. [No-final-newline patches](05-no-final-newline-patches.md)
+6. [Line-number stability](06-line-number-stability.md)
 
 Each case should include:
 

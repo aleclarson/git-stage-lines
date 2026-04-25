@@ -42,6 +42,22 @@ pub fn build(b: *std.Build) void {
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
 
+    const e2e_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("test/cli/e2e.test.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+
+    const run_e2e_tests = b.addRunArtifact(e2e_tests);
+    run_e2e_tests.setEnvironmentVariable(
+        "GIT_STAGE_LINES_BIN",
+        b.getInstallPath(.bin, "git-stage-lines"),
+    );
+    run_e2e_tests.step.dependOn(b.getInstallStep());
+
     const test_step = b.step("test", "Run Zig tests");
     test_step.dependOn(&run_unit_tests.step);
+    test_step.dependOn(&run_e2e_tests.step);
 }
