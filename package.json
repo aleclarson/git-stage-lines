@@ -1,0 +1,39 @@
+{
+  "name": "git-stage-lines",
+  "version": "0.0.0",
+  "license": "MIT",
+  "author": "Alec Larson",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aleclarson/git-stage-lines.git"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "examples"
+  ],
+  "type": "module",
+  "exports": {
+    "types": "./dist/index.d.mts",
+    "default": "./dist/index.mjs"
+  },
+  "scripts": {
+    "dev": "tsdown --sourcemap --watch",
+    "build": "tsdown",
+    "format": "oxfmt .",
+    "lint": "oxlint src",
+    "typecheck": "tsc --noEmit && tsc -p test --noEmit",
+    "test": "vitest",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "oxfmt": "*",
+    "oxlint": "*",
+    "radashi": "*",
+    "tsdown": "*",
+    "tsnapi": "^0.1.1",
+    "typescript": "*",
+    "vitest": "*"
+  }
+}
