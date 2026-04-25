@@ -29,6 +29,8 @@ nl -ba docs/notes.md
 nl -ba src/config.txt
 ```
 
+Refs from `$TOOL diff` remain valid until you edit the working tree. Stage `+N` output as `N`, and stage `-N` output as `-N`.
+
 ## Basic Help And Errors
 
 ```bash
@@ -45,11 +47,10 @@ $TOOL src/app.ts 99 --allow-empty --json
 ## Dry Run And Check
 
 ```bash
-$TOOL src/app.ts 4 --dry-run
-$TOOL src/app.ts:4 --dry-run
-$TOOL src/app.ts 4 --dry-run --json
-$TOOL src/app.ts 4 --check
-$TOOL src/app.ts 4 --check --json
+$TOOL src/app.ts:-4,4 --dry-run
+$TOOL src/app.ts:-4,4 --dry-run --json
+$TOOL src/app.ts:-4,4 --check
+$TOOL src/app.ts:-4,4 --check --json
 
 git diff --cached
 git diff -- src/app.ts
@@ -61,7 +62,7 @@ git diff -- src/app.ts
 
 ```bash
 git reset -q
-$TOOL src/app.ts 4 --json
+$TOOL src/app.ts:-4,4 --json
 
 git diff --cached -- src/app.ts
 git diff -- src/app.ts
@@ -73,7 +74,7 @@ This stages the `Queued` to `Waiting` change while leaving the other `src/app.ts
 
 ```bash
 git reset -q
-$TOOL src/app.ts 6 --json
+$TOOL src/app.ts:-6,6 --json
 
 git diff --cached -- src/app.ts
 git diff -- src/app.ts
@@ -85,7 +86,7 @@ This stages the `Done` to `Complete` change.
 
 ```bash
 git reset -q
-$TOOL src/app.ts 15 --json
+$TOOL src/app.ts:-15,15 --json
 
 git diff --cached -- src/app.ts
 git diff -- src/app.ts
@@ -97,7 +98,7 @@ This stages only the `retryLimit` change.
 
 ```bash
 git reset -q
-$TOOL docs/notes.md 4 --mode new --json
+$TOOL docs/notes.md:4 --json
 
 git diff --cached -- docs/notes.md
 git diff -- docs/notes.md
@@ -107,7 +108,7 @@ Try the second added note too:
 
 ```bash
 git reset -q
-$TOOL docs/notes.md 6 --mode new --json
+$TOOL docs/notes.md:6 --json
 
 git diff --cached -- docs/notes.md
 git diff -- docs/notes.md
@@ -119,17 +120,15 @@ The `beta=true` line was deleted from `src/config.txt`. It exists only on the ol
 
 ```bash
 git reset -q
-$TOOL src/config.txt 2 --mode new --json
-$TOOL src/config.txt 2 --mode old --json
 $TOOL src/config.txt:-2 --json
 
 git diff --cached -- src/config.txt
 git diff -- src/config.txt
 ```
 
-The `--mode new` command should report no matching change. The `--mode old` command should stage the deletion.
+The `-2` ref comes from `$TOOL diff src/config.txt` output.
 
-## Use Agent-Friendly Mode
+## Use Editor Line Ranges
 
 ```bash
 git reset -q
@@ -139,7 +138,7 @@ git diff --cached -- src/config.txt
 git diff -- src/config.txt
 ```
 
-`--mode both` is useful when you are not sure whether a requested line is an addition, deletion, or modification.
+`FILE RANGES --mode both` is useful when an editor or another tool gives you working-tree line ranges instead of exact refs from `$TOOL diff`.
 
 ## The Canonical Try-Out Example (Atomic Commits)
 
@@ -149,27 +148,27 @@ If you're wondering how you can use this in your workflow, here is how you can b
 git reset -q
 
 # Commit 1: Update terminology for status states
-$TOOL src/app.ts 4,6
+$TOOL src/app.ts:-4,4,-6,6
 git commit -m "refactor: update status display labels"
 
 # Commit 2: Increase retry limit
-$TOOL src/app.ts 15
+$TOOL src/app.ts:-15,15
 git commit -m "fix: increase retry limit from 2 to 3"
 
 # Commit 3: Remove beta configuration
-$TOOL src/config.txt 2 --mode old
+$TOOL src/config.txt:-2
 git commit -m "chore: remove beta flag from config"
 
 # Commit 4: Disable delta configuration
-$TOOL src/config.txt 4
+$TOOL src/config.txt:-3,3
 git commit -m "config: disable delta flag"
 
 # Commit 5: Add release note for staged line selection
-$TOOL docs/notes.md 4
+$TOOL docs/notes.md:4
 git commit -m "docs: add release note for staged line selection"
 
 # Commit 6: Add release note for JSON output
-$TOOL docs/notes.md 6
+$TOOL docs/notes.md:6
 git commit -m "docs: add release note for JSON output"
 ```
 
@@ -182,6 +181,8 @@ $TOOL src/app.ts 4,15 --mode both --json
 git diff --cached -- src/app.ts
 git diff -- src/app.ts
 ```
+
+This form stages by working-tree line ranges. Prefer `FILE:REFS` when you are working from `$TOOL diff` output.
 
 ## Human Output
 

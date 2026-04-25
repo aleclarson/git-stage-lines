@@ -59,7 +59,6 @@ export type StageLinesOptions = {
   check?: boolean;
   allowEmpty?: boolean;
   verbose?: boolean;
-  context?: number;
   env?: Record<string, string | undefined>;
   signal?: AbortSignal;
 };

@@ -133,8 +133,7 @@ const BytesOutcome = union(enum) {
 fn runStage(allocator: mem.Allocator, io: std.Io, options: args.StageOptions) !RunOutcome {
     if (try ensureGitRepository(allocator, io)) |cli_err| return .{ .failure = cli_err };
 
-    _ = options.context;
-    const diff_text = switch (try gitDiffFile(allocator, io, options.file, 0)) {
+    const diff_text = switch (try gitDiffFile(allocator, io, options.file)) {
         .data => |data| data,
         .failure => |cli_err| return .{ .failure = cli_err },
     };
@@ -236,7 +235,7 @@ fn runDiff(
 ) !?CliError {
     if (try ensureGitRepository(allocator, io)) |cli_err| return cli_err;
 
-    const diff_text = switch (try gitDiffFiles(allocator, io, options.files, 0)) {
+    const diff_text = switch (try gitDiffFiles(allocator, io, options.files)) {
         .data => |data| data,
         .failure => |cli_err| return cli_err,
     };
@@ -274,17 +273,14 @@ fn ensureGitRepository(allocator: mem.Allocator, io: std.Io) !?CliError {
     return null;
 }
 
-fn gitDiffFile(allocator: mem.Allocator, io: std.Io, file: []const u8, context: u32) !BytesOutcome {
-    return gitDiffFiles(allocator, io, &.{file}, context);
+fn gitDiffFile(allocator: mem.Allocator, io: std.Io, file: []const u8) !BytesOutcome {
+    return gitDiffFiles(allocator, io, &.{file});
 }
 
-fn gitDiffFiles(allocator: mem.Allocator, io: std.Io, files: []const []const u8, context: u32) !BytesOutcome {
-    const unified = try std.fmt.allocPrint(allocator, "--unified={d}", .{context});
-    defer allocator.free(unified);
-
+fn gitDiffFiles(allocator: mem.Allocator, io: std.Io, files: []const []const u8) !BytesOutcome {
     var argv: std.ArrayList([]const u8) = .empty;
     defer argv.deinit(allocator);
-    try argv.appendSlice(allocator, &.{ "git", "diff", "--no-ext-diff", "--no-color", unified, "--" });
+    try argv.appendSlice(allocator, &.{ "git", "diff", "--no-ext-diff", "--no-color", "--unified=0", "--" });
     try argv.appendSlice(allocator, files);
 
     var result = runGit(allocator, io, argv.items) catch |err| switch (err) {
@@ -428,7 +424,6 @@ fn parseErrorToCli(err: args.ParseError) CliError {
         error.UnknownOption => .{ .code = .user_input, .reason = "unknown_option", .message = "unknown option" },
         error.InvalidMode => .{ .code = .user_input, .reason = "invalid_mode", .message = "mode must be new, old, or both" },
         error.InvalidShell => .{ .code = .user_input, .reason = "invalid_shell", .message = "shell must be bash, zsh, or fish" },
-        error.InvalidContext => .{ .code = .user_input, .reason = "invalid_context", .message = "context must be an integer between 0 and 1000" },
         error.EmptyRanges => .{ .code = .user_input, .reason = "empty_ranges", .message = "ranges must not be empty" },
         error.InvalidRange => .{ .code = .user_input, .reason = "invalid_range", .message = "ranges must use LINE or START-END forms" },
         error.InvalidNumber => .{ .code = .user_input, .reason = "invalid_range_number", .message = "range lines must be positive integers" },

@@ -25,9 +25,6 @@ const bash_completions =
     \\      COMPREPLY=( $(compgen -W "new old both" -- "$cur") )
     \\      return 0
     \\      ;;
-    \\    --context)
-    \\      return 0
-    \\      ;;
     \\    completions)
     \\      COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
     \\      return 0
@@ -35,7 +32,7 @@ const bash_completions =
     \\  esac
     \\
     \\  if [[ "$cur" == -* ]]; then
-    \\    COMPREPLY=( $(compgen -W "--mode --dry-run --check --json --context --allow-empty --verbose --version --help" -- "$cur") )
+    \\    COMPREPLY=( $(compgen -W "--mode --dry-run --check --json --allow-empty --verbose --version --help" -- "$cur") )
     \\    return 0
     \\  fi
     \\
@@ -61,7 +58,6 @@ const zsh_completions =
     \\    '--dry-run[Print the patch that would be staged]'
     \\    '--check[Validate the selected patch without staging]'
     \\    '--json[Emit machine-readable JSON]'
-    \\    '--context[Accepted for compatibility]:context'
     \\    '--allow-empty[Treat no matching changes as a successful noop]'
     \\    '--verbose[Include extra diagnostics]'
     \\    '--version[Show version]'
@@ -89,7 +85,6 @@ const fish_completions =
     \\complete -c git-stage-lines -l dry-run -d 'Print the patch that would be staged'
     \\complete -c git-stage-lines -l check -d 'Validate without staging'
     \\complete -c git-stage-lines -l json -d 'Emit machine-readable JSON'
-    \\complete -c git-stage-lines -l context -x -d 'Accepted for compatibility'
     \\complete -c git-stage-lines -l allow-empty -d 'Treat no matching changes as success'
     \\complete -c git-stage-lines -l verbose -d 'Include extra diagnostics'
     \\complete -c git-stage-lines -l version -d 'Show version'
@@ -122,6 +117,16 @@ const man_page =
     \\RANGES is a comma-separated list such as 10, 10-15, or 10,20-25. By default, ranges refer to new working-tree line numbers.
     \\
     \\FILE:REFS is exact. Positive refs select new-side lines. Negative refs select old-side deletion lines. Examples: src/app.ts:10, src/app.ts:-20, src/app.ts:-20..-25.
+    \\
+    \\The diff command prints +N and -N refs. Stage +N output as N. Stage -N output as -N. Line refs stay valid until the working tree changes.
+    \\.SH AGENT WORKFLOW
+    \\For automated staging, use:
+    \\
+    \\.B git-stage-lines diff FILE
+    \\
+    \\.B git-stage-lines FILE:REFS --json
+    \\
+    \\.B git diff --cached -- FILE
     \\.SH OPTIONS
     \\.TP
     \\.B --mode new|old|both

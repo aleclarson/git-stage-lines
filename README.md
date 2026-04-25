@@ -75,18 +75,53 @@ Commit normally:
 git commit -m "feat: update app behavior"
 ```
 
-## Tip For Coding Agents
+## Agent Workflow
 
-If you use Codex or another coding agent, add a global `AGENTS.md` instruction so it does not stage unrelated edits from the same file.
+For coding agents, prefer the direct binary name: `git-stage-lines`. This avoids Git's special `--help` handling for subcommands and avoids confusion if Git ever adds an official `stage-lines` command.
 
-For agents, prefer the direct binary name: `git-stage-lines`. This avoids Git's special `--help` handling for subcommands and avoids confusion if Git ever adds an official `stage-lines` command.
+Use this workflow when staging part of a file:
+
+```sh
+git-stage-lines diff src/app.ts
+git-stage-lines src/app.ts:12,-20 --json
+git diff --cached -- src/app.ts
+```
+
+`git-stage-lines diff` prints stageable changed-line refs:
+
+```text
+src/app.ts:
+  -12:  oldValue()
+  +12:  newValue()
+
+  +20:  addedValue()
+```
+
+Stage `+N` output as `N`, and stage `-N` output as `-N`:
+
+```sh
+git-stage-lines src/app.ts:-12,12 --json
+git-stage-lines src/app.ts:20 --json
+```
+
+Do not include the `+` sign in `FILE:REFS`. Keep the `-` sign for deletions.
+
+Line refs from `git-stage-lines diff` stay valid until the working tree changes, so an agent can stage later refs first and earlier refs afterward without recalculating line numbers.
+
+| Situation | Use |
+| --- | --- |
+| Exact refs from `git-stage-lines diff` | `git-stage-lines FILE:REFS --json` |
+| Editor or tool gives working-tree line ranges | `git-stage-lines FILE RANGES --mode both --json` |
+| Validate before staging | `git-stage-lines FILE:REFS --check --json` |
+| Idempotent staging is acceptable | `git-stage-lines FILE:REFS --allow-empty --json` |
+| Whole file should be staged | `git add FILE` |
 
 Copy-paste this prompt:
 
 ```text
 Update my global AGENTS.md to include this Git instruction:
 
-When staging partial changes, prefer `git-stage-lines FILE RANGES` so only the intended line ranges are staged. Use `git add` only when the whole file should be staged.
+When staging partial changes, run `git-stage-lines diff FILE`, then stage exact refs with `git-stage-lines FILE:REFS --json`. Stage `+N` output as `N`, stage `-N` output as `-N`, and verify with `git diff --cached -- FILE`. Use `git add FILE` only when the whole file should be staged.
 ```
 
 ## What It Does
@@ -224,7 +259,6 @@ The API returns the same stable JSON result shape as the CLI. Process-level fail
 | `--dry-run` | Print the patch that would be staged. |
 | `--check` | Validate the generated patch without staging it. |
 | `--json` | Print machine-readable output. |
-| `--context N` | Accepted for compatibility. Staging uses zero-context patches internally. |
 | `--allow-empty` | Exit successfully when no matching changes are found. |
 | `--version` | Print the installed version. |
 | `-h`, `--help` | Print CLI help. |

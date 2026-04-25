@@ -28,7 +28,6 @@ pub const ParseError = error{
     UnknownOption,
     InvalidMode,
     InvalidShell,
-    InvalidContext,
     InvalidRange,
     InvalidNumber,
     ReversedRange,
@@ -83,7 +82,6 @@ pub const StageOptions = struct {
     check: bool = false,
     allow_empty: bool = false,
     verbose: bool = false,
-    context: u32 = 0,
 
     pub fn deinit(self: StageOptions, allocator: mem.Allocator) void {
         self.selection.deinit(allocator);
@@ -125,7 +123,6 @@ fn parseStage(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!S
     var check = false;
     var allow_empty = false;
     var verbose = false;
-    var context: u32 = 0;
 
     var i: usize = 1;
     while (i < argv.len) : (i += 1) {
@@ -150,12 +147,6 @@ fn parseStage(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!S
             mode = parseMode(argv[i]) orelse return error.InvalidMode;
         } else if (mem.startsWith(u8, arg, "--mode=")) {
             mode = parseMode(arg["--mode=".len..]) orelse return error.InvalidMode;
-        } else if (mem.eql(u8, arg, "--context")) {
-            i += 1;
-            if (i >= argv.len) return error.MissingOptionValue;
-            context = parseContext(argv[i]) catch return error.InvalidContext;
-        } else if (mem.startsWith(u8, arg, "--context=")) {
-            context = parseContext(arg["--context=".len..]) catch return error.InvalidContext;
         } else if (mem.startsWith(u8, arg, "-")) {
             return error.UnknownOption;
         } else if (file == null) {
@@ -195,7 +186,6 @@ fn parseStage(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!S
         .check = check,
         .allow_empty = allow_empty,
         .verbose = verbose,
-        .context = context,
     };
 }
 
@@ -213,7 +203,6 @@ fn parseStageFileRef(allocator: mem.Allocator, argv: []const [:0]const u8) Parse
     var check = false;
     var allow_empty = false;
     var verbose = false;
-    var context: u32 = 0;
 
     var i: usize = 2;
     while (i < argv.len) : (i += 1) {
@@ -238,12 +227,6 @@ fn parseStageFileRef(allocator: mem.Allocator, argv: []const [:0]const u8) Parse
             mode = parseMode(argv[i]) orelse return error.InvalidMode;
         } else if (mem.startsWith(u8, arg, "--mode=")) {
             mode = parseMode(arg["--mode=".len..]) orelse return error.InvalidMode;
-        } else if (mem.eql(u8, arg, "--context")) {
-            i += 1;
-            if (i >= argv.len) return error.MissingOptionValue;
-            context = parseContext(argv[i]) catch return error.InvalidContext;
-        } else if (mem.startsWith(u8, arg, "--context=")) {
-            context = parseContext(arg["--context=".len..]) catch return error.InvalidContext;
         } else if (mem.startsWith(u8, arg, "-")) {
             return error.UnknownOption;
         } else {
@@ -269,7 +252,6 @@ fn parseStageFileRef(allocator: mem.Allocator, argv: []const [:0]const u8) Parse
         .check = check,
         .allow_empty = allow_empty,
         .verbose = verbose,
-        .context = context,
     };
 }
 
@@ -332,26 +314,19 @@ fn parseMode(value: []const u8) ?Mode {
     return null;
 }
 
-fn parseContext(value: []const u8) !u32 {
-    const parsed = try std.fmt.parseInt(u32, value, 10);
-    if (parsed > 1000) return error.ContextTooLarge;
-    return parsed;
-}
-
 pub const usage =
     \\usage:
-    \\  git stage-lines FILE RANGES [options]
-    \\  git stage-lines FILE:REFS [options]
-    \\  git stage-lines diff [FILE...]
-    \\  git stage-lines completions bash|zsh|fish
-    \\  git stage-lines man
+    \\  git-stage-lines FILE RANGES [options]
+    \\  git-stage-lines FILE:REFS [options]
+    \\  git-stage-lines diff [FILE...]
+    \\  git-stage-lines completions bash|zsh|fish
+    \\  git-stage-lines man
     \\
     \\Options:
     \\  --mode new|old|both  Select by working-tree, index, or either line numbers
     \\  --dry-run            Print the patch that would be staged
     \\  --check              Validate the selected patch without staging
     \\  --json               Emit machine-readable JSON
-    \\  --context N          Accepted for compatibility; staging uses zero-context patches
     \\  --allow-empty        Treat no matching changes as a successful noop
     \\  --verbose            Include extra human-readable diagnostics
     \\  --version            Show version
@@ -360,10 +335,19 @@ pub const usage =
     \\Diff:
     \\  diff [FILE...]       Show unstaged changes with line numbers
     \\
+    \\Line Refs:
+    \\  diff prints +N and -N refs. Stage +N as FILE:N and -N as FILE:-N.
+    \\  Refs stay valid until the working tree changes.
+    \\
+    \\Agent Workflow:
+    \\  git-stage-lines diff FILE
+    \\  git-stage-lines FILE:REFS --json
+    \\  git diff --cached -- FILE
+    \\
     \\Generated Output:
     \\  completions SHELL    Print shell completions
     \\  man                  Print a manual page
     \\
 ;
 
-pub const version = "0.1.0";
+pub const version = "0.2.0";

@@ -1,13 +1,14 @@
 {
   "name": "git-stage-lines",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "author": "Alec Larson",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aleclarson/git-stage-lines.git"
+    "url": "git+https://github.com/aleclarson/git-stage-lines.git"
   },
   "files": [
+    "CHANGELOG.md",
     "dist",
     "docs",
     "examples"

@@ -139,7 +139,6 @@ function prepareCommand(options: StageLinesOptions): PreparedCommand {
     mode,
     ...flag(options.allowEmpty, '--allow-empty'),
     ...flag(options.verbose, '--verbose'),
-    ...numberOption(options.context, '--context'),
     ...flag(options.dryRun, '--dry-run'),
     ...flag(options.check, '--check'),
     '--json',
@@ -166,12 +165,6 @@ function validateOptions(options: StageLinesOptions): void {
     throw new TypeError('mode must be new, old, or both')
   }
 
-  if (options.context !== undefined) {
-    if (!Number.isInteger(options.context) || options.context < 0 || options.context > 1000) {
-      throw new TypeError('context must be an integer between 0 and 1000')
-    }
-  }
-
   if (options.dryRun && options.check) {
     throw new TypeError('dryRun and check are mutually exclusive')
   }
@@ -179,10 +172,6 @@ function validateOptions(options: StageLinesOptions): void {
 
 function flag(enabled: boolean | undefined, name: string): string[] {
   return enabled ? [name] : []
-}
-
-function numberOption(value: number | undefined, name: string): string[] {
-  return value === undefined ? [] : [name, String(value)]
 }
 
 function parseOutput(stdout: string, stderr: string, exitCode: number): StageLinesResult {

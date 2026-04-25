@@ -376,8 +376,6 @@ export type StageLinesOptions = {
   allowEmpty?: boolean
   verbose?: boolean
 
-  context?: number
-
   env?: Record<string, string | undefined>
   signal?: AbortSignal
 }
@@ -484,14 +482,13 @@ stageLines({
   mode: 'both',
   cwd: repoPath,
   allowEmpty: true,
-  context: 5,
 })
 ```
 
 Should invoke equivalent behavior to:
 
 ```bash
-git-stage-lines src/app.ts 10-15,22 --mode both --allow-empty --context 5 --json
+git-stage-lines src/app.ts 10-15,22 --mode both --allow-empty --json
 ```
 
 Use argument arrays. Never interpolate a shell command string.

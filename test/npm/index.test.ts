@@ -66,12 +66,11 @@ test('stageLines invokes the binary with normalized arguments', async () => {
     ranges: [[10, 15], 22],
     mode: 'both',
     allowEmpty: true,
-    context: 5,
   })
 
   expect(result.status).toBe('staged')
   expect(readJson(argsFile)).toEqual({
-    argv: ['src/app.ts', '10-15,22', '--mode', 'both', '--allow-empty', '--context', '5', '--json'],
+    argv: ['src/app.ts', '10-15,22', '--mode', 'both', '--allow-empty', '--json'],
     cwd: realpathSync(dir),
     env: 'adapter-test',
   })

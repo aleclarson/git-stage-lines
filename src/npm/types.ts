@@ -16,8 +16,6 @@ export type StageLinesOptions = {
   allowEmpty?: boolean
   verbose?: boolean
 
-  context?: number
-
   env?: Record<string, string | undefined>
   signal?: AbortSignal
 }
