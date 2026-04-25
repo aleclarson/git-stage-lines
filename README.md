@@ -265,6 +265,8 @@ zig build -Doptimize=ReleaseSafe
 
 To use it as `git stage-lines`, put the compiled `git-stage-lines` binary on your `PATH`.
 
+Patch-generation behavior is documented in [docs/corpus](docs/corpus/README.md).
+
 ## License
 
 MIT
