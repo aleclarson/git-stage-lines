@@ -1,6 +1,7 @@
 const std = @import("std");
 const args = @import("args.zig");
 const diff = @import("diff.zig");
+const diff_view = @import("diff_view.zig");
 const errors = @import("errors.zig");
 const json = @import("json.zig");
 const patch = @import("patch.zig");
@@ -43,50 +44,62 @@ pub fn main(init: std.process.Init) !void {
     };
     defer parsed.deinit(allocator);
 
-    const result = switch (try run(allocator, io, parsed)) {
-        .success => |success| success,
-        .failure => |cli_err| {
-            try emitFailure(allocator, stdout, stderr, parsed.json, cli_err, parsed.file, parsed.range_set.normalized);
-            try stdout.flush();
-            try stderr.flush();
-            std.process.exit(@intFromEnum(cli_err.code));
-        },
-    };
-    defer result.deinit(allocator);
+    switch (parsed.command) {
+        .stage => |stage| {
+            const result = switch (try runStage(allocator, io, stage)) {
+                .success => |success| success,
+                .failure => |cli_err| {
+                    try emitFailure(allocator, stdout, stderr, stage.json, cli_err, stage.file, stage.range_set.normalized);
+                    try stdout.flush();
+                    try stderr.flush();
+                    std.process.exit(@intFromEnum(cli_err.code));
+                },
+            };
+            defer result.deinit(allocator);
 
-    if (parsed.json) {
-        const body = try json.success(allocator, .{
-            .kind = result.kind,
-            .file = parsed.file,
-            .ranges = parsed.range_set.normalized,
-            .mode = parsed.mode,
-            .selected_changes = result.selected_changes,
-            .skipped_changes = result.skipped_changes,
-            .patch_applied = result.patch_applied,
-            .would_apply = result.would_apply,
-            .reason = result.reason,
-            .patch = result.patch,
-        });
-        defer allocator.free(body);
-        try stdout.writeAll(body);
-    } else {
-        switch (result.kind) {
-            .staged => try stdout.print(
-                "Staged {d} changes from {s} matching lines {s}.\n",
-                .{ result.selected_changes, parsed.file, parsed.range_set.normalized },
-            ),
-            .checked => try stdout.print(
-                "Patch would apply for {d} changes from {s} matching lines {s}.\n",
-                .{ result.selected_changes, parsed.file, parsed.range_set.normalized },
-            ),
-            .@"dry-run" => if (result.patch) |patch_text| {
-                try stdout.writeAll(patch_text);
-            },
-            .noop => try stdout.print(
-                "No matching changes in {s} for lines {s}.\n",
-                .{ parsed.file, parsed.range_set.normalized },
-            ),
-        }
+            if (stage.json) {
+                const body = try json.success(allocator, .{
+                    .kind = result.kind,
+                    .file = stage.file,
+                    .ranges = stage.range_set.normalized,
+                    .mode = stage.mode,
+                    .selected_changes = result.selected_changes,
+                    .skipped_changes = result.skipped_changes,
+                    .patch_applied = result.patch_applied,
+                    .would_apply = result.would_apply,
+                    .reason = result.reason,
+                    .patch = result.patch,
+                });
+                defer allocator.free(body);
+                try stdout.writeAll(body);
+            } else {
+                switch (result.kind) {
+                    .staged => try stdout.print(
+                        "Staged {d} changes from {s} matching lines {s}.\n",
+                        .{ result.selected_changes, stage.file, stage.range_set.normalized },
+                    ),
+                    .checked => try stdout.print(
+                        "Patch would apply for {d} changes from {s} matching lines {s}.\n",
+                        .{ result.selected_changes, stage.file, stage.range_set.normalized },
+                    ),
+                    .@"dry-run" => if (result.patch) |patch_text| {
+                        try stdout.writeAll(patch_text);
+                    },
+                    .noop => try stdout.print(
+                        "No matching changes in {s} for lines {s}.\n",
+                        .{ stage.file, stage.range_set.normalized },
+                    ),
+                }
+            }
+        },
+        .diff => |diff_options| {
+            if (try runDiff(allocator, io, stdout, diff_options)) |cli_err| {
+                try emitFailure(allocator, stdout, stderr, false, cli_err, null, null);
+                try stdout.flush();
+                try stderr.flush();
+                std.process.exit(@intFromEnum(cli_err.code));
+            }
+        },
     }
 }
 
@@ -114,10 +127,10 @@ const BytesOutcome = union(enum) {
     failure: CliError,
 };
 
-fn run(allocator: mem.Allocator, io: std.Io, options: args.Options) !RunOutcome {
+fn runStage(allocator: mem.Allocator, io: std.Io, options: args.StageOptions) !RunOutcome {
     if (try ensureGitRepository(allocator, io)) |cli_err| return .{ .failure = cli_err };
 
-    const diff_text = switch (try gitDiff(allocator, io, options.file, options.context)) {
+    const diff_text = switch (try gitDiffFile(allocator, io, options.file, options.context)) {
         .data => |data| data,
         .failure => |cli_err| return .{ .failure = cli_err },
     };
@@ -211,6 +224,31 @@ fn run(allocator: mem.Allocator, io: std.Io, options: args.Options) !RunOutcome 
     } };
 }
 
+fn runDiff(
+    allocator: mem.Allocator,
+    io: std.Io,
+    stdout: *std.Io.Writer,
+    options: args.DiffOptions,
+) !?CliError {
+    if (try ensureGitRepository(allocator, io)) |cli_err| return cli_err;
+
+    const diff_text = switch (try gitDiffFiles(allocator, io, options.files, 0)) {
+        .data => |data| data,
+        .failure => |cli_err| return cli_err,
+    };
+    defer allocator.free(diff_text);
+
+    diff_view.write(stdout, diff_text) catch |err| switch (err) {
+        error.MalformedDiff => return CliError{
+            .code = .unsupported,
+            .reason = "malformed_diff",
+            .message = "git produced a diff this tool could not parse",
+        },
+        else => return err,
+    };
+    return null;
+}
+
 fn ensureGitRepository(allocator: mem.Allocator, io: std.Io) !?CliError {
     var result = runGit(allocator, io, &.{ "git", "rev-parse", "--is-inside-work-tree" }) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
@@ -232,11 +270,20 @@ fn ensureGitRepository(allocator: mem.Allocator, io: std.Io) !?CliError {
     return null;
 }
 
-fn gitDiff(allocator: mem.Allocator, io: std.Io, file: []const u8, context: u32) !BytesOutcome {
+fn gitDiffFile(allocator: mem.Allocator, io: std.Io, file: []const u8, context: u32) !BytesOutcome {
+    return gitDiffFiles(allocator, io, &.{file}, context);
+}
+
+fn gitDiffFiles(allocator: mem.Allocator, io: std.Io, files: []const []const u8, context: u32) !BytesOutcome {
     const unified = try std.fmt.allocPrint(allocator, "--unified={d}", .{context});
     defer allocator.free(unified);
 
-    var result = runGit(allocator, io, &.{ "git", "diff", "--no-ext-diff", "--no-color", unified, "--", file }) catch |err| switch (err) {
+    var argv: std.ArrayList([]const u8) = .empty;
+    defer argv.deinit(allocator);
+    try argv.appendSlice(allocator, &.{ "git", "diff", "--no-ext-diff", "--no-color", unified, "--" });
+    try argv.appendSlice(allocator, files);
+
+    var result = runGit(allocator, io, argv.items) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
         error.GitSpawnFailed => return .{ .failure = .{
             .code = .git_command,

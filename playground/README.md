@@ -18,6 +18,8 @@ The reset script runs `zig build`, recreates `worktree`, commits baseline files,
 
 ```bash
 git status --short
+$TOOL diff
+$TOOL diff src/app.ts
 git diff -- src/app.ts
 git diff -- docs/notes.md
 git diff -- src/config.txt

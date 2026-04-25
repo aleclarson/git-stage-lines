@@ -35,6 +35,22 @@ pub const ParseError = error{
 };
 
 pub const Options = struct {
+    command: Command,
+
+    pub fn deinit(self: Options, allocator: mem.Allocator) void {
+        switch (self.command) {
+            .stage => |stage| stage.deinit(allocator),
+            .diff => |diff| diff.deinit(allocator),
+        }
+    }
+};
+
+pub const Command = union(enum) {
+    stage: StageOptions,
+    diff: DiffOptions,
+};
+
+pub const StageOptions = struct {
     file: []const u8,
     range_set: ranges.RangeSet,
     mode: Mode = .new,
@@ -45,12 +61,27 @@ pub const Options = struct {
     verbose: bool = false,
     context: u32 = 3,
 
-    pub fn deinit(self: Options, allocator: mem.Allocator) void {
+    pub fn deinit(self: StageOptions, allocator: mem.Allocator) void {
         self.range_set.deinit(allocator);
     }
 };
 
+pub const DiffOptions = struct {
+    files: []const []const u8,
+
+    pub fn deinit(self: DiffOptions, allocator: mem.Allocator) void {
+        allocator.free(self.files);
+    }
+};
+
 pub fn parse(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!Options {
+    if (argv.len > 1 and mem.eql(u8, argv[1], "diff")) {
+        return .{ .command = .{ .diff = try parseDiff(allocator, argv[2..]) } };
+    }
+    return .{ .command = .{ .stage = try parseStage(allocator, argv) } };
+}
+
+fn parseStage(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!StageOptions {
     var file: ?[]const u8 = null;
     var raw_ranges: ?[]const u8 = null;
     var mode: Mode = .new;
@@ -112,7 +143,7 @@ pub fn parse(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!Op
         error.WriteFailed => return error.OutOfMemory,
     };
 
-    return .{
+    return StageOptions{
         .file = parsed_file,
         .range_set = range_set,
         .mode = mode,
@@ -123,6 +154,24 @@ pub fn parse(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!Op
         .verbose = verbose,
         .context = context,
     };
+}
+
+fn parseDiff(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!DiffOptions {
+    var files: std.ArrayList([]const u8) = .empty;
+    defer files.deinit(allocator);
+
+    for (argv) |arg| {
+        if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
+            return error.Help;
+        } else if (mem.eql(u8, arg, "--version")) {
+            return error.Version;
+        } else if (mem.startsWith(u8, arg, "-")) {
+            return error.UnknownOption;
+        }
+        try files.append(allocator, arg);
+    }
+
+    return .{ .files = try allocator.dupe([]const u8, files.items) };
 }
 
 fn parseMode(value: []const u8) ?Mode {
@@ -139,7 +188,9 @@ fn parseContext(value: []const u8) !u32 {
 }
 
 pub const usage =
-    \\usage: git stage-lines FILE RANGES [options]
+    \\usage:
+    \\  git stage-lines FILE RANGES [options]
+    \\  git stage-lines diff [FILE...]
     \\
     \\Options:
     \\  --mode new|old|both  Select by working-tree, index, or either line numbers
@@ -151,6 +202,9 @@ pub const usage =
     \\  --verbose            Include extra human-readable diagnostics
     \\  --version            Show version
     \\  -h, --help           Show this help
+    \\
+    \\Diff:
+    \\  diff [FILE...]       Show unstaged changes with line numbers
     \\
 ;
 

@@ -38,6 +38,12 @@ The npm package invokes the native `git-stage-lines` binary. Install the CLI, pa
 
 ## Quick Start
 
+Show changed lines with line numbers:
+
+```sh
+git stage-lines diff src/app.ts
+```
+
 Stage line 42 from one file:
 
 ```sh
@@ -101,6 +107,13 @@ git stage-lines FILE RANGES [options]
 By default, line numbers refer to the new working-tree version of the file.
 
 ## Common Commands
+
+Show unstaged changes with stageable line numbers:
+
+```sh
+git stage-lines diff
+git stage-lines diff src/app.ts
+```
 
 Preview the exact patch without staging it:
 
