@@ -6,7 +6,7 @@ Publish a JavaScript/TypeScript package named:
 git-stage-lines
 ```
 
-The package provides ergonomic Node.js and Bun-compatible APIs for invoking the native `git-stage-lines` binary.
+The package provides ergonomic Node.js and Bun-compatible APIs for invoking the bundled native `git-stage-lines` binary.
 
 The npm package is a thin adapter. It must not duplicate staging, diff, or patch-selection logic that belongs in the native binary.
 
@@ -37,11 +37,13 @@ Current package scripts:
 {
   "dev": "tsdown --sourcemap --watch",
   "build": "tsdown",
+  "build:native": "node scripts/build-npm-binaries.mjs",
+  "build:package": "pnpm build && pnpm build:native",
   "format": "oxfmt .",
   "lint": "oxlint src/npm test/npm",
   "typecheck": "tsc --noEmit && tsc -p test --noEmit",
   "test": "vitest",
-  "prepublishOnly": "pnpm build"
+  "prepack": "pnpm build:package"
 }
 ```
 
@@ -58,7 +60,10 @@ Current `package.json` shape:
   "name": "git-stage-lines",
   "version": "0.0.0",
   "type": "module",
-  "files": ["dist", "docs", "examples"],
+  "files": ["CHANGELOG.md", "dist", "docs", "examples"],
+  "bin": {
+    "git-stage-lines": "./dist/cli.mjs"
+  },
   "exports": {
     "types": "./dist/index.d.mts",
     "default": "./dist/index.mjs"
@@ -85,6 +90,9 @@ src/
     errors.ts
     binary.ts
     run.ts
+    cli.ts
+scripts/
+  build-npm-binaries.mjs
 test/
   npm/
     *.test.ts
@@ -115,7 +123,7 @@ import { defineConfig } from 'tsdown'
 import ApiSnapshot from 'tsnapi/rolldown'
 
 export default defineConfig({
-  entry: ['src/npm/index.ts'],
+  entry: ['src/npm/index.ts', 'src/npm/cli.ts'],
   format: ['esm'],
   dts: true,
   plugins: [ApiSnapshot()],
@@ -127,6 +135,8 @@ Expected build output:
 ```text
 dist/index.mjs
 dist/index.d.mts
+dist/cli.mjs
+dist/bin/<platform>-<arch>/git-stage-lines
 ```
 
 Do not introduce `tsup`, `unbuild`, Rollup config files, or a second build pipeline while `tsdown` covers the package needs.
@@ -502,7 +512,7 @@ Resolve the binary in this order:
 ```text
 1. options.binaryPath
 2. GIT_STAGE_LINES_BINARY environment variable
-3. bundled platform-specific binary, if package distribution adds one
+3. bundled platform-specific binary
 4. git-stage-lines on PATH
 5. git stage-lines via Git subcommand resolution, only if direct binary resolution fails
 ```
@@ -614,10 +624,10 @@ if (result.status === 'error') {
 Publishing should run:
 
 ```bash
-pnpm build
+pnpm build:package
 ```
 
-through `prepublishOnly`.
+through `prepack`.
 
 Before publishing, verify:
 
@@ -626,7 +636,8 @@ pnpm format
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm build
+pnpm build:package
+npm pack --dry-run
 ```
 
 The published package should include only:
@@ -637,10 +648,11 @@ docs
 examples
 LICENSE
 README.md
+CHANGELOG.md
 package.json
 ```
 
-If native binary packages are added later, document that distribution separately and wire it into binary resolution without changing the JS package's zero-runtime-dependency goal.
+The `dist` package contents should include the JavaScript entry points and generated native binaries under `dist/bin/<platform>-<arch>/`.
 
 ---
 

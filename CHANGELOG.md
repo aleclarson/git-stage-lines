@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.1 - 2026-04-25
+
+### Added
+
+- Bundled native npm package binaries for macOS, Linux, and Windows on x64 and arm64.
+- Added an npm CLI shim that dispatches to the bundled native binary.
+
 ## 0.2.0 - 2026-04-25
 
 ### Added

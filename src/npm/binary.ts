@@ -1,4 +1,4 @@
-import { accessSync, constants, existsSync } from 'node:fs'
+import { accessSync, constants, existsSync, realpathSync } from 'node:fs'
 import { delimiter, dirname, isAbsolute, join, resolve } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -11,11 +11,15 @@ export type ResolvedBinary = {
   argsPrefix: string[]
 }
 
+type ResolveBinaryOptions = FindBinaryOptions & {
+  excludePath?: string
+}
+
 export function findBinary(options: FindBinaryOptions = {}): string {
   return resolveBinary(options).command
 }
 
-export function resolveBinary(options: FindBinaryOptions = {}): ResolvedBinary {
+export function resolveBinary(options: ResolveBinaryOptions = {}): ResolvedBinary {
   const env = mergeEnv(options.env)
 
   if (options.binaryPath) {
@@ -32,7 +36,7 @@ export function resolveBinary(options: FindBinaryOptions = {}): ResolvedBinary {
     return { command: bundledBinary, argsPrefix: [] }
   }
 
-  const pathBinary = findOnPath('git-stage-lines', env)
+  const pathBinary = findOnPath('git-stage-lines', env, options.excludePath)
   if (pathBinary) {
     return { command: pathBinary, argsPrefix: [] }
   }
@@ -42,9 +46,12 @@ export function resolveBinary(options: FindBinaryOptions = {}): ResolvedBinary {
     return { command: gitBinary, argsPrefix: ['stage-lines'] }
   }
 
-  throw new GitStageLinesError('Could not find git-stage-lines or git on PATH', {
-    reason: 'binary_not_found',
-  })
+  throw new GitStageLinesError(
+    'Could not find a bundled git-stage-lines binary, git-stage-lines on PATH, or git stage-lines',
+    {
+      reason: 'binary_not_found',
+    },
+  )
 }
 
 export function mergeEnv(
@@ -58,6 +65,7 @@ function findBundledBinary(): string | undefined {
   const extension = process.platform === 'win32' ? '.exe' : ''
   const here = dirname(fileURLToPath(import.meta.url))
   const candidates = [
+    join(here, 'bin', platformName, `git-stage-lines${extension}`),
     join(here, 'bin', `git-stage-lines${extension}`),
     join(here, '..', 'bin', platformName, `git-stage-lines${extension}`),
   ]
@@ -65,7 +73,11 @@ function findBundledBinary(): string | undefined {
   return candidates.find(isExecutableFile)
 }
 
-function findOnPath(command: string, env: Record<string, string | undefined>): string | undefined {
+function findOnPath(
+  command: string,
+  env: Record<string, string | undefined>,
+  excludePath?: string,
+): string | undefined {
   if (command.includes('/') || command.includes('\\')) {
     return isExecutableFile(command) ? command : undefined
   }
@@ -81,7 +93,7 @@ function findOnPath(command: string, env: Record<string, string | undefined>): s
 
     for (const extension of extensions) {
       const candidate = resolve(directory, `${command}${extension}`)
-      if (isExecutableFile(candidate)) {
+      if (isExecutableFile(candidate) && !sameFile(candidate, excludePath)) {
         return candidate
       }
     }
@@ -101,5 +113,21 @@ function isExecutableFile(path: string): boolean {
     return true
   } catch {
     return existsSync(path) && process.platform === 'win32' && isAbsolute(path)
+  }
+}
+
+function sameFile(left: string, right: string | undefined): boolean {
+  if (!right) {
+    return false
+  }
+
+  if (resolve(left) === resolve(right)) {
+    return true
+  }
+
+  try {
+    return realpathSync(left) === realpathSync(right)
+  } catch {
+    return false
   }
 }

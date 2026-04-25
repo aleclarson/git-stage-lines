@@ -1,11 +1,14 @@
 {
   "name": "git-stage-lines",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "author": "Alec Larson",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/aleclarson/git-stage-lines.git"
+  },
+  "bin": {
+    "git-stage-lines": "./dist/cli.mjs"
   },
   "files": [
     "CHANGELOG.md",
@@ -21,11 +24,13 @@
   "scripts": {
     "dev": "tsdown --sourcemap --watch",
     "build": "tsdown",
+    "build:native": "node scripts/build-npm-binaries.mjs",
+    "build:package": "pnpm build && pnpm build:native",
     "format": "oxfmt .",
     "lint": "oxlint src/npm test/npm",
     "typecheck": "tsc --noEmit && tsc -p test --noEmit",
     "test": "vitest",
-    "prepublishOnly": "pnpm build"
+    "prepack": "pnpm build:package"
   },
   "devDependencies": {
     "@types/bun": "^1.3.13",

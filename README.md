@@ -4,7 +4,7 @@ Stage only the changed lines you want.
 
 `git-stage-lines` is a small Git subcommand for precise, line-based staging. It is useful when one file has several unrelated edits and `git add -p` is more interaction than you want.
 
-It also ships a JavaScript/TypeScript package for Node.js and Bun. The package is a thin adapter around the native binary, so scripts and editor integrations can use the same staging behavior as the CLI.
+It also ships a JavaScript/TypeScript package for Node.js and Bun. The package is a thin adapter around the bundled native binary, so scripts and editor integrations can use the same staging behavior as the CLI.
 
 ## Install
 
@@ -34,7 +34,13 @@ yarn add git-stage-lines
 bun add git-stage-lines
 ```
 
-The npm package invokes the native `git-stage-lines` binary. Install the CLI, pass `binaryPath`, set `GIT_STAGE_LINES_BINARY`, or make sure `git-stage-lines` is on `PATH`.
+The npm package includes native binaries for macOS, Linux, and Windows on x64 and arm64. It also exposes the CLI:
+
+```sh
+pnpm exec git-stage-lines --version
+```
+
+For unsupported platforms or local development builds, pass `binaryPath`, set `GIT_STAGE_LINES_BINARY`, or make sure `git-stage-lines` is on `PATH`.
 
 ## Quick Start
 
@@ -108,13 +114,13 @@ Do not include the `+` sign in `FILE:REFS`. Keep the `-` sign for deletions.
 
 Line refs from `git-stage-lines diff` stay valid until the working tree changes, so an agent can stage later refs first and earlier refs afterward without recalculating line numbers.
 
-| Situation | Use |
-| --- | --- |
-| Exact refs from `git-stage-lines diff` | `git-stage-lines FILE:REFS --json` |
+| Situation                                     | Use                                              |
+| --------------------------------------------- | ------------------------------------------------ |
+| Exact refs from `git-stage-lines diff`        | `git-stage-lines FILE:REFS --json`               |
 | Editor or tool gives working-tree line ranges | `git-stage-lines FILE RANGES --mode both --json` |
-| Validate before staging | `git-stage-lines FILE:REFS --check --json` |
-| Idempotent staging is acceptable | `git-stage-lines FILE:REFS --allow-empty --json` |
-| Whole file should be staged | `git add FILE` |
+| Validate before staging                       | `git-stage-lines FILE:REFS --check --json`       |
+| Idempotent staging is acceptable              | `git-stage-lines FILE:REFS --allow-empty --json` |
+| Whole file should be staged                   | `git add FILE`                                   |
 
 Copy-paste this prompt:
 
@@ -226,12 +232,7 @@ if (result.status === 'error') {
 The adapter also exports sync and convenience helpers:
 
 ```ts
-import {
-  checkStageLines,
-  dryRunStageLines,
-  findBinary,
-  stageLinesSync,
-} from 'git-stage-lines'
+import { checkStageLines, dryRunStageLines, findBinary, stageLinesSync } from 'git-stage-lines'
 ```
 
 Useful options:
@@ -242,26 +243,25 @@ await stageLines({
   file: 'src/app.ts',
   ranges: '12-18,27',
   mode: 'both',
-  binaryPath: './zig-out/bin/git-stage-lines',
   check: true,
 })
 ```
 
-The API returns the same stable JSON result shape as the CLI. Process-level failures, missing binaries, and malformed JSON throw `GitStageLinesError`.
+The API returns the same stable JSON result shape as the CLI. Process-level failures, missing binaries, and malformed JSON throw `GitStageLinesError`. To use a development build instead of the bundled binary, pass `binaryPath` or set `GIT_STAGE_LINES_BINARY`.
 
 ## Options
 
-| Option | Purpose |
-| --- | --- |
-| `--mode new` | Match ranges against new working-tree line numbers. This is the default. |
-| `--mode old` | Match ranges against old index line numbers. Useful for deletions. |
-| `--mode both` | Match either old or new line numbers. Useful when you do not want to think about it. |
-| `--dry-run` | Print the patch that would be staged. |
-| `--check` | Validate the generated patch without staging it. |
-| `--json` | Print machine-readable output. |
-| `--allow-empty` | Exit successfully when no matching changes are found. |
-| `--version` | Print the installed version. |
-| `-h`, `--help` | Print CLI help. |
+| Option          | Purpose                                                                              |
+| --------------- | ------------------------------------------------------------------------------------ |
+| `--mode new`    | Match ranges against new working-tree line numbers. This is the default.             |
+| `--mode old`    | Match ranges against old index line numbers. Useful for deletions.                   |
+| `--mode both`   | Match either old or new line numbers. Useful when you do not want to think about it. |
+| `--dry-run`     | Print the patch that would be staged.                                                |
+| `--check`       | Validate the generated patch without staging it.                                     |
+| `--json`        | Print machine-readable output.                                                       |
+| `--allow-empty` | Exit successfully when no matching changes are found.                                |
+| `--version`     | Print the installed version.                                                         |
+| `-h`, `--help`  | Print CLI help.                                                                      |
 
 ## Generated Shell Help
 

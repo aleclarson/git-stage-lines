@@ -350,4 +350,4 @@ pub const usage =
     \\
 ;
 
-pub const version = "0.2.0";
+pub const version = "0.2.1";
