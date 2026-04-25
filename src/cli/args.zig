@@ -1,0 +1,151 @@
+const std = @import("std");
+const ranges = @import("ranges.zig");
+
+const mem = std.mem;
+
+pub const Mode = enum {
+    new,
+    old,
+    both,
+
+    pub fn label(self: Mode) []const u8 {
+        return switch (self) {
+            .new => "new",
+            .old => "old",
+            .both => "both",
+        };
+    }
+};
+
+pub const ParseError = error{
+    Help,
+    MissingFile,
+    MissingRanges,
+    TooManyPositionals,
+    MissingOptionValue,
+    UnknownOption,
+    InvalidMode,
+    InvalidContext,
+    InvalidRange,
+    InvalidNumber,
+    ReversedRange,
+    EmptyRanges,
+    OutOfMemory,
+};
+
+pub const Options = struct {
+    file: []const u8,
+    range_set: ranges.RangeSet,
+    mode: Mode = .new,
+    dry_run: bool = false,
+    json: bool = false,
+    check: bool = false,
+    allow_empty: bool = false,
+    verbose: bool = false,
+    context: u32 = 3,
+
+    pub fn deinit(self: Options, allocator: mem.Allocator) void {
+        self.range_set.deinit(allocator);
+    }
+};
+
+pub fn parse(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!Options {
+    var file: ?[]const u8 = null;
+    var raw_ranges: ?[]const u8 = null;
+    var mode: Mode = .new;
+    var dry_run = false;
+    var json = false;
+    var check = false;
+    var allow_empty = false;
+    var verbose = false;
+    var context: u32 = 3;
+
+    var i: usize = 1;
+    while (i < argv.len) : (i += 1) {
+        const arg = argv[i];
+        if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
+            return error.Help;
+        } else if (mem.eql(u8, arg, "--json")) {
+            json = true;
+        } else if (mem.eql(u8, arg, "--dry-run")) {
+            dry_run = true;
+        } else if (mem.eql(u8, arg, "--check")) {
+            check = true;
+        } else if (mem.eql(u8, arg, "--allow-empty")) {
+            allow_empty = true;
+        } else if (mem.eql(u8, arg, "--verbose")) {
+            verbose = true;
+        } else if (mem.eql(u8, arg, "--mode")) {
+            i += 1;
+            if (i >= argv.len) return error.MissingOptionValue;
+            mode = parseMode(argv[i]) orelse return error.InvalidMode;
+        } else if (mem.startsWith(u8, arg, "--mode=")) {
+            mode = parseMode(arg["--mode=".len..]) orelse return error.InvalidMode;
+        } else if (mem.eql(u8, arg, "--context")) {
+            i += 1;
+            if (i >= argv.len) return error.MissingOptionValue;
+            context = parseContext(argv[i]) catch return error.InvalidContext;
+        } else if (mem.startsWith(u8, arg, "--context=")) {
+            context = parseContext(arg["--context=".len..]) catch return error.InvalidContext;
+        } else if (mem.startsWith(u8, arg, "-")) {
+            return error.UnknownOption;
+        } else if (file == null) {
+            file = arg;
+        } else if (raw_ranges == null) {
+            raw_ranges = arg;
+        } else {
+            return error.TooManyPositionals;
+        }
+    }
+
+    const parsed_file = file orelse return error.MissingFile;
+    const parsed_ranges = raw_ranges orelse return error.MissingRanges;
+    const range_set = ranges.parse(allocator, parsed_ranges) catch |err| switch (err) {
+        error.EmptyRanges => return error.EmptyRanges,
+        error.InvalidRange => return error.InvalidRange,
+        error.InvalidNumber => return error.InvalidNumber,
+        error.ReversedRange => return error.ReversedRange,
+        error.OutOfMemory => return error.OutOfMemory,
+        error.WriteFailed => return error.OutOfMemory,
+    };
+
+    return .{
+        .file = parsed_file,
+        .range_set = range_set,
+        .mode = mode,
+        .dry_run = dry_run,
+        .json = json,
+        .check = check,
+        .allow_empty = allow_empty,
+        .verbose = verbose,
+        .context = context,
+    };
+}
+
+fn parseMode(value: []const u8) ?Mode {
+    if (mem.eql(u8, value, "new")) return .new;
+    if (mem.eql(u8, value, "old")) return .old;
+    if (mem.eql(u8, value, "both")) return .both;
+    return null;
+}
+
+fn parseContext(value: []const u8) !u32 {
+    const parsed = try std.fmt.parseInt(u32, value, 10);
+    if (parsed > 1000) return error.ContextTooLarge;
+    return parsed;
+}
+
+pub const usage =
+    \\usage: git stage-lines FILE RANGES [options]
+    \\
+    \\Options:
+    \\  --mode new|old|both  Select by working-tree, index, or either line numbers
+    \\  --dry-run            Print the patch that would be staged
+    \\  --check              Validate the selected patch without staging
+    \\  --json               Emit machine-readable JSON
+    \\  --context N          Diff context lines to request from Git (default: 3)
+    \\  --allow-empty        Treat no matching changes as a successful noop
+    \\  --verbose            Include extra human-readable diagnostics
+    \\  -h, --help           Show this help
+    \\
+;
