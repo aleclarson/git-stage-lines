@@ -24,8 +24,10 @@ pub const ParseError = error{
     MissingRanges,
     TooManyPositionals,
     MissingOptionValue,
+    MissingShell,
     UnknownOption,
     InvalidMode,
+    InvalidShell,
     InvalidContext,
     InvalidRange,
     InvalidNumber,
@@ -41,6 +43,8 @@ pub const Options = struct {
         switch (self.command) {
             .stage => |stage| stage.deinit(allocator),
             .diff => |diff| diff.deinit(allocator),
+            .completions => {},
+            .man => {},
         }
     }
 };
@@ -48,6 +52,26 @@ pub const Options = struct {
 pub const Command = union(enum) {
     stage: StageOptions,
     diff: DiffOptions,
+    completions: CompletionsOptions,
+    man,
+};
+
+pub const Shell = enum {
+    bash,
+    zsh,
+    fish,
+
+    pub fn label(self: Shell) []const u8 {
+        return switch (self) {
+            .bash => "bash",
+            .zsh => "zsh",
+            .fish => "fish",
+        };
+    }
+};
+
+pub const CompletionsOptions = struct {
+    shell: Shell,
 };
 
 pub const StageOptions = struct {
@@ -77,6 +101,13 @@ pub const DiffOptions = struct {
 pub fn parse(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!Options {
     if (argv.len > 1 and mem.eql(u8, argv[1], "diff")) {
         return .{ .command = .{ .diff = try parseDiff(allocator, argv[2..]) } };
+    }
+    if (argv.len > 1 and mem.eql(u8, argv[1], "completions")) {
+        return .{ .command = .{ .completions = try parseCompletions(argv[2..]) } };
+    }
+    if (argv.len > 1 and mem.eql(u8, argv[1], "man")) {
+        try parseNoArgs(argv[2..]);
+        return .{ .command = .man };
     }
     return .{ .command = .{ .stage = try parseStage(allocator, argv) } };
 }
@@ -260,9 +291,38 @@ fn parseDiff(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!Di
     return .{ .files = try allocator.dupe([]const u8, files.items) };
 }
 
+fn parseCompletions(argv: []const [:0]const u8) ParseError!CompletionsOptions {
+    if (argv.len == 0) return error.MissingShell;
+    if (argv.len > 1) return error.TooManyPositionals;
+
+    const shell = parseShell(argv[0]) orelse return error.InvalidShell;
+    return .{ .shell = shell };
+}
+
+fn parseNoArgs(argv: []const [:0]const u8) ParseError!void {
+    for (argv) |arg| {
+        if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
+            return error.Help;
+        } else if (mem.eql(u8, arg, "--version")) {
+            return error.Version;
+        } else if (mem.startsWith(u8, arg, "-")) {
+            return error.UnknownOption;
+        } else {
+            return error.TooManyPositionals;
+        }
+    }
+}
+
 fn isFileRef(arg: []const u8) bool {
     const colon = mem.lastIndexOfScalar(u8, arg, ':') orelse return false;
     return colon > 0 and colon + 1 < arg.len;
+}
+
+fn parseShell(value: []const u8) ?Shell {
+    if (mem.eql(u8, value, "bash")) return .bash;
+    if (mem.eql(u8, value, "zsh")) return .zsh;
+    if (mem.eql(u8, value, "fish")) return .fish;
+    return null;
 }
 
 fn parseMode(value: []const u8) ?Mode {
@@ -283,6 +343,8 @@ pub const usage =
     \\  git stage-lines FILE RANGES [options]
     \\  git stage-lines FILE:REFS [options]
     \\  git stage-lines diff [FILE...]
+    \\  git stage-lines completions bash|zsh|fish
+    \\  git stage-lines man
     \\
     \\Options:
     \\  --mode new|old|both  Select by working-tree, index, or either line numbers
@@ -297,6 +359,10 @@ pub const usage =
     \\
     \\Diff:
     \\  diff [FILE...]       Show unstaged changes with line numbers
+    \\
+    \\Generated Output:
+    \\  completions SHELL    Print shell completions
+    \\  man                  Print a manual page
     \\
 ;
 

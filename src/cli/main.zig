@@ -3,6 +3,7 @@ const args = @import("args.zig");
 const diff = @import("diff.zig");
 const diff_view = @import("diff_view.zig");
 const errors = @import("errors.zig");
+const generated = @import("generated.zig");
 const json = @import("json.zig");
 const patch = @import("patch.zig");
 
@@ -100,6 +101,8 @@ pub fn main(init: std.process.Init) !void {
                 std.process.exit(@intFromEnum(cli_err.code));
             }
         },
+        .completions => |completion_options| try generated.writeCompletions(stdout, completion_options.shell),
+        .man => try generated.writeMan(stdout),
     }
 }
 
@@ -419,10 +422,12 @@ fn parseErrorToCli(err: args.ParseError) CliError {
     return switch (err) {
         error.MissingFile => .{ .code = .user_input, .reason = "missing_file", .message = "missing FILE argument" },
         error.MissingRanges => .{ .code = .user_input, .reason = "missing_ranges", .message = "missing RANGES argument" },
+        error.MissingShell => .{ .code = .user_input, .reason = "missing_shell", .message = "missing shell argument" },
         error.TooManyPositionals => .{ .code = .user_input, .reason = "too_many_positionals", .message = "expected exactly FILE and RANGES" },
         error.MissingOptionValue => .{ .code = .user_input, .reason = "missing_option_value", .message = "option requires a value" },
         error.UnknownOption => .{ .code = .user_input, .reason = "unknown_option", .message = "unknown option" },
         error.InvalidMode => .{ .code = .user_input, .reason = "invalid_mode", .message = "mode must be new, old, or both" },
+        error.InvalidShell => .{ .code = .user_input, .reason = "invalid_shell", .message = "shell must be bash, zsh, or fish" },
         error.InvalidContext => .{ .code = .user_input, .reason = "invalid_context", .message = "context must be an integer between 0 and 1000" },
         error.EmptyRanges => .{ .code = .user_input, .reason = "empty_ranges", .message = "ranges must not be empty" },
         error.InvalidRange => .{ .code = .user_input, .reason = "invalid_range", .message = "ranges must use LINE or START-END forms" },

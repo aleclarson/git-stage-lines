@@ -163,6 +163,14 @@ Emit JSON for scripts and editor integrations:
 git stage-lines src/app.ts 12-18 --json
 ```
 
+Generate shell completions or a man page:
+
+```sh
+git stage-lines completions zsh > ~/.zfunc/_git-stage-lines
+git stage-lines completions fish > ~/.config/fish/completions/git-stage-lines.fish
+git stage-lines man > git-stage-lines.1
+```
+
 ## JavaScript/TypeScript API
 
 ```ts
@@ -220,6 +228,15 @@ The API returns the same stable JSON result shape as the CLI. Process-level fail
 | `--allow-empty` | Exit successfully when no matching changes are found. |
 | `--version` | Print the installed version. |
 | `-h`, `--help` | Print CLI help. |
+
+## Generated Shell Help
+
+```sh
+git stage-lines completions bash
+git stage-lines completions zsh
+git stage-lines completions fish
+git stage-lines man
+```
 
 ## Example
 

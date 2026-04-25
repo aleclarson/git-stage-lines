@@ -33,6 +33,8 @@ nl -ba src/config.txt
 
 ```bash
 $TOOL --help
+$TOOL completions bash | head
+$TOOL man | head
 $TOOL src/app.ts
 $TOOL src/app.ts bad-range --json
 $TOOL src/app.ts:bad-range --json

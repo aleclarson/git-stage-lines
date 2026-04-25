@@ -45,6 +45,22 @@ test "parses file refs shorthand into old and new selections" {
     try std.testing.expect(stage.selection.containsNew(9));
 }
 
+test "parses generated output commands" {
+    const allocator = std.testing.allocator;
+    {
+        const argv = [_][:0]const u8{ "git-stage-lines", "completions", "zsh" };
+        const parsed = try args.parse(allocator, &argv);
+        defer parsed.deinit(allocator);
+        try std.testing.expectEqual(args.Shell.zsh, parsed.command.completions.shell);
+    }
+    {
+        const argv = [_][:0]const u8{ "git-stage-lines", "man" };
+        const parsed = try args.parse(allocator, &argv);
+        defer parsed.deinit(allocator);
+        try std.testing.expect(parsed.command == .man);
+    }
+}
+
 test "builds patch for selected changed block only" {
     const allocator = std.testing.allocator;
     const diff_text =
