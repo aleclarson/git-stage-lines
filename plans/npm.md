@@ -153,7 +153,7 @@ The root `tsconfig.json` is strict and source-focused:
     "declaration": true,
     "emitDeclarationOnly": true,
     "skipLibCheck": true,
-    "types": []
+    "types": ["node"]
   }
 }
 ```
@@ -162,7 +162,8 @@ Implications:
 
 ```text
 - Source should use explicit imports for runtime APIs.
-- Avoid relying on ambient Node or Bun globals in production source.
+- Node types are enabled so `node:` module imports resolve in production source.
+- Avoid relying on ambient Bun globals in production source.
 - Keep TypeScript syntax erasable.
 - Keep emitted declarations compatible with the ESM export map.
 ```
