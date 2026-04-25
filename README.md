@@ -56,6 +56,13 @@ Stage a few ranges:
 git stage-lines src/app.ts 12-18,27,45-50
 ```
 
+Use shorthand syntax from `diff` output:
+
+```sh
+git stage-lines src/app.ts:12-18,27
+git stage-lines src/app.ts:-20
+```
+
 Review what was staged:
 
 ```sh
@@ -94,6 +101,7 @@ Your working tree is left alone. Only the index changes.
 
 ```text
 git stage-lines FILE RANGES [options]
+git stage-lines FILE:REFS [options]
 ```
 
 `RANGES` is a comma-separated list:
@@ -105,6 +113,16 @@ git stage-lines FILE RANGES [options]
 ```
 
 By default, line numbers refer to the new working-tree version of the file.
+
+In `FILE:REFS` shorthand, positive refs select new-side lines and negative refs select old-side deletion lines:
+
+```text
+src/app.ts:10
+src/app.ts:10-15
+src/app.ts:-20
+src/app.ts:-20..-25
+src/app.ts:-20,22
+```
 
 ## Common Commands
 

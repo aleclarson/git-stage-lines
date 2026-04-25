@@ -52,7 +52,7 @@ pub const Command = union(enum) {
 
 pub const StageOptions = struct {
     file: []const u8,
-    range_set: ranges.RangeSet,
+    selection: ranges.Selection,
     mode: Mode = .new,
     dry_run: bool = false,
     json: bool = false,
@@ -62,7 +62,7 @@ pub const StageOptions = struct {
     context: u32 = 3,
 
     pub fn deinit(self: StageOptions, allocator: mem.Allocator) void {
-        self.range_set.deinit(allocator);
+        self.selection.deinit(allocator);
     }
 };
 
@@ -82,6 +82,10 @@ pub fn parse(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!Op
 }
 
 fn parseStage(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!StageOptions {
+    if (argv.len > 1 and isFileRef(argv[1])) {
+        return parseStageFileRef(allocator, argv);
+    }
+
     var file: ?[]const u8 = null;
     var raw_ranges: ?[]const u8 = null;
     var mode: Mode = .new;
@@ -134,7 +138,89 @@ fn parseStage(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!S
 
     const parsed_file = file orelse return error.MissingFile;
     const parsed_ranges = raw_ranges orelse return error.MissingRanges;
-    const range_set = ranges.parse(allocator, parsed_ranges) catch |err| switch (err) {
+    var range_set = ranges.parse(allocator, parsed_ranges) catch |err| switch (err) {
+        error.EmptyRanges => return error.EmptyRanges,
+        error.InvalidRange => return error.InvalidRange,
+        error.InvalidNumber => return error.InvalidNumber,
+        error.ReversedRange => return error.ReversedRange,
+        error.OutOfMemory => return error.OutOfMemory,
+        error.WriteFailed => return error.OutOfMemory,
+    };
+    defer range_set.deinit(allocator);
+
+    const selection = ranges.selectionFromRangeSet(
+        allocator,
+        range_set,
+        mode == .old or mode == .both,
+        mode == .new or mode == .both,
+    ) catch return error.OutOfMemory;
+
+    return StageOptions{
+        .file = parsed_file,
+        .selection = selection,
+        .mode = mode,
+        .dry_run = dry_run,
+        .json = json,
+        .check = check,
+        .allow_empty = allow_empty,
+        .verbose = verbose,
+        .context = context,
+    };
+}
+
+fn parseStageFileRef(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!StageOptions {
+    const file_ref = argv[1];
+    const colon = mem.lastIndexOfScalar(u8, file_ref, ':') orelse return error.MissingRanges;
+    if (colon == 0) return error.MissingFile;
+    if (colon + 1 >= file_ref.len) return error.EmptyRanges;
+
+    const file = file_ref[0..colon];
+    const raw_refs = file_ref[colon + 1 ..];
+    var mode: Mode = .both;
+    var dry_run = false;
+    var json = false;
+    var check = false;
+    var allow_empty = false;
+    var verbose = false;
+    var context: u32 = 3;
+
+    var i: usize = 2;
+    while (i < argv.len) : (i += 1) {
+        const arg = argv[i];
+        if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
+            return error.Help;
+        } else if (mem.eql(u8, arg, "--version")) {
+            return error.Version;
+        } else if (mem.eql(u8, arg, "--json")) {
+            json = true;
+        } else if (mem.eql(u8, arg, "--dry-run")) {
+            dry_run = true;
+        } else if (mem.eql(u8, arg, "--check")) {
+            check = true;
+        } else if (mem.eql(u8, arg, "--allow-empty")) {
+            allow_empty = true;
+        } else if (mem.eql(u8, arg, "--verbose")) {
+            verbose = true;
+        } else if (mem.eql(u8, arg, "--mode")) {
+            i += 1;
+            if (i >= argv.len) return error.MissingOptionValue;
+            mode = parseMode(argv[i]) orelse return error.InvalidMode;
+        } else if (mem.startsWith(u8, arg, "--mode=")) {
+            mode = parseMode(arg["--mode=".len..]) orelse return error.InvalidMode;
+        } else if (mem.eql(u8, arg, "--context")) {
+            i += 1;
+            if (i >= argv.len) return error.MissingOptionValue;
+            context = parseContext(argv[i]) catch return error.InvalidContext;
+        } else if (mem.startsWith(u8, arg, "--context=")) {
+            context = parseContext(arg["--context=".len..]) catch return error.InvalidContext;
+        } else if (mem.startsWith(u8, arg, "-")) {
+            return error.UnknownOption;
+        } else {
+            return error.TooManyPositionals;
+        }
+    }
+
+    const selection = ranges.parseRefs(allocator, raw_refs) catch |err| switch (err) {
         error.EmptyRanges => return error.EmptyRanges,
         error.InvalidRange => return error.InvalidRange,
         error.InvalidNumber => return error.InvalidNumber,
@@ -143,9 +229,9 @@ fn parseStage(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!S
         error.WriteFailed => return error.OutOfMemory,
     };
 
-    return StageOptions{
-        .file = parsed_file,
-        .range_set = range_set,
+    return .{
+        .file = file,
+        .selection = selection,
         .mode = mode,
         .dry_run = dry_run,
         .json = json,
@@ -174,6 +260,11 @@ fn parseDiff(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!Di
     return .{ .files = try allocator.dupe([]const u8, files.items) };
 }
 
+fn isFileRef(arg: []const u8) bool {
+    const colon = mem.lastIndexOfScalar(u8, arg, ':') orelse return false;
+    return colon > 0 and colon + 1 < arg.len;
+}
+
 fn parseMode(value: []const u8) ?Mode {
     if (mem.eql(u8, value, "new")) return .new;
     if (mem.eql(u8, value, "old")) return .old;
@@ -190,6 +281,7 @@ fn parseContext(value: []const u8) !u32 {
 pub const usage =
     \\usage:
     \\  git stage-lines FILE RANGES [options]
+    \\  git stage-lines FILE:REFS [options]
     \\  git stage-lines diff [FILE...]
     \\
     \\Options:

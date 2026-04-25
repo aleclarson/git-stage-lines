@@ -35,6 +35,7 @@ nl -ba src/config.txt
 $TOOL --help
 $TOOL src/app.ts
 $TOOL src/app.ts bad-range --json
+$TOOL src/app.ts:bad-range --json
 $TOOL src/app.ts 99 --json
 $TOOL src/app.ts 99 --allow-empty --json
 ```
@@ -43,6 +44,7 @@ $TOOL src/app.ts 99 --allow-empty --json
 
 ```bash
 $TOOL src/app.ts 4 --dry-run
+$TOOL src/app.ts:4 --dry-run
 $TOOL src/app.ts 4 --dry-run --json
 $TOOL src/app.ts 4 --check
 $TOOL src/app.ts 4 --check --json
@@ -117,6 +119,7 @@ The `beta=true` line was deleted from `src/config.txt`. It exists only on the ol
 git reset -q
 $TOOL src/config.txt 2 --mode new --json
 $TOOL src/config.txt 2 --mode old --json
+$TOOL src/config.txt:-2 --json
 
 git diff --cached -- src/config.txt
 git diff -- src/config.txt

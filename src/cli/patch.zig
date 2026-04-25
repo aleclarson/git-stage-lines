@@ -26,7 +26,7 @@ const PatchLine = struct {
 pub fn build(
     allocator: mem.Allocator,
     parsed: diff.FileDiff,
-    selected_ranges: ranges.RangeSet,
+    selection: ranges.Selection,
     mode: args.Mode,
 ) !BuildResult {
     var out: std.Io.Writer.Allocating = .init(allocator);
@@ -38,7 +38,7 @@ pub fn build(
     var wrote_header = false;
 
     for (parsed.hunks) |hunk| {
-        var hunk_result = try buildHunk(allocator, hunk, selected_ranges, mode, selected_delta);
+        var hunk_result = try buildHunk(allocator, hunk, selection, mode, selected_delta);
         defer hunk_result.deinit(allocator);
 
         selected_changes += hunk_result.selected_changes;
@@ -94,7 +94,7 @@ const HunkBuild = struct {
 fn buildHunk(
     allocator: mem.Allocator,
     hunk: diff.Hunk,
-    selected_ranges: ranges.RangeSet,
+    selection: ranges.Selection,
     mode: args.Mode,
     incoming_delta: i64,
 ) !HunkBuild {
@@ -142,11 +142,11 @@ fn buildHunk(
                 for (hunk.lines[block_start..block_end]) |change| {
                     switch (change.kind) {
                         .removal => {
-                            if ((mode == .old or mode == .both) and selected_ranges.contains(scan_old)) selected = true;
+                            if ((mode == .old or mode == .both) and selection.containsOld(scan_old)) selected = true;
                             scan_old += 1;
                         },
                         .addition => {
-                            if ((mode == .new or mode == .both) and selected_ranges.contains(scan_new)) selected = true;
+                            if ((mode == .new or mode == .both) and selection.containsNew(scan_new)) selected = true;
                             scan_new += 1;
                         },
                         .context => unreachable,

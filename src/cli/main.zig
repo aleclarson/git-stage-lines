@@ -49,7 +49,7 @@ pub fn main(init: std.process.Init) !void {
             const result = switch (try runStage(allocator, io, stage)) {
                 .success => |success| success,
                 .failure => |cli_err| {
-                    try emitFailure(allocator, stdout, stderr, stage.json, cli_err, stage.file, stage.range_set.normalized);
+                    try emitFailure(allocator, stdout, stderr, stage.json, cli_err, stage.file, stage.selection.normalized);
                     try stdout.flush();
                     try stderr.flush();
                     std.process.exit(@intFromEnum(cli_err.code));
@@ -61,7 +61,7 @@ pub fn main(init: std.process.Init) !void {
                 const body = try json.success(allocator, .{
                     .kind = result.kind,
                     .file = stage.file,
-                    .ranges = stage.range_set.normalized,
+                    .ranges = stage.selection.normalized,
                     .mode = stage.mode,
                     .selected_changes = result.selected_changes,
                     .skipped_changes = result.skipped_changes,
@@ -76,18 +76,18 @@ pub fn main(init: std.process.Init) !void {
                 switch (result.kind) {
                     .staged => try stdout.print(
                         "Staged {d} changes from {s} matching lines {s}.\n",
-                        .{ result.selected_changes, stage.file, stage.range_set.normalized },
+                        .{ result.selected_changes, stage.file, stage.selection.normalized },
                     ),
                     .checked => try stdout.print(
                         "Patch would apply for {d} changes from {s} matching lines {s}.\n",
-                        .{ result.selected_changes, stage.file, stage.range_set.normalized },
+                        .{ result.selected_changes, stage.file, stage.selection.normalized },
                     ),
                     .@"dry-run" => if (result.patch) |patch_text| {
                         try stdout.writeAll(patch_text);
                     },
                     .noop => try stdout.print(
                         "No matching changes in {s} for lines {s}.\n",
-                        .{ stage.file, stage.range_set.normalized },
+                        .{ stage.file, stage.selection.normalized },
                     ),
                 }
             }
@@ -170,7 +170,7 @@ fn runStage(allocator: mem.Allocator, io: std.Io, options: args.StageOptions) !R
     };
     defer parsed_diff.deinit(allocator);
 
-    const built = try patch.build(allocator, parsed_diff, options.range_set, options.mode);
+    const built = try patch.build(allocator, parsed_diff, options.selection, options.mode);
     defer built.deinit(allocator);
 
     if (built.selected_changes == 0 or built.patch.len == 0) {

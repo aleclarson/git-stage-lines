@@ -28,6 +28,23 @@ test "rejects invalid ranges" {
     try std.testing.expectError(error.ReversedRange, ranges.parse(allocator, "9-2"));
 }
 
+test "parses file refs shorthand into old and new selections" {
+    const allocator = std.testing.allocator;
+    const argv = [_][:0]const u8{ "git-stage-lines", "src/app.ts:-4,6,8-9", "--json" };
+    const parsed = try args.parse(allocator, &argv);
+    defer parsed.deinit(allocator);
+
+    const stage = parsed.command.stage;
+    try std.testing.expectEqualSlices(u8, "src/app.ts", stage.file);
+    try std.testing.expect(stage.json);
+    try std.testing.expectEqual(args.Mode.both, stage.mode);
+    try std.testing.expectEqualSlices(u8, "-4,6,8-9", stage.selection.normalized);
+    try std.testing.expect(stage.selection.containsOld(4));
+    try std.testing.expect(!stage.selection.containsOld(6));
+    try std.testing.expect(stage.selection.containsNew(6));
+    try std.testing.expect(stage.selection.containsNew(9));
+}
+
 test "builds patch for selected changed block only" {
     const allocator = std.testing.allocator;
     const diff_text =
@@ -50,8 +67,10 @@ test "builds patch for selected changed block only" {
 
     var set = try ranges.parse(allocator, "2");
     defer set.deinit(allocator);
+    var selection = try ranges.selectionFromRangeSet(allocator, set, false, true);
+    defer selection.deinit(allocator);
 
-    const built = try patch.build(allocator, parsed_diff, set, args.Mode.new);
+    const built = try patch.build(allocator, parsed_diff, selection, args.Mode.new);
     defer built.deinit(allocator);
 
     try std.testing.expectEqual(@as(u32, 1), built.selected_changes);
