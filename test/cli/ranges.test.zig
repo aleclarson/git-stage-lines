@@ -73,8 +73,38 @@ test "builds patch for selected changed block only" {
     const built = try patch.build(allocator, parsed_diff, selection, args.Mode.new);
     defer built.deinit(allocator);
 
-    try std.testing.expectEqual(@as(u32, 1), built.selected_changes);
+    try std.testing.expectEqual(@as(u32, 2), built.selected_changes);
     try std.testing.expectEqual(@as(u32, 1), built.skipped_changes);
     try std.testing.expect(mem.indexOf(u8, built.patch, "-two\n+TWO") != null);
     try std.testing.expect(mem.indexOf(u8, built.patch, "+FOUR") == null);
+}
+
+test "file refs select individual added lines from one insertion block" {
+    const allocator = std.testing.allocator;
+    const diff_text =
+        \\diff --git a/file.txt b/file.txt
+        \\index f384549..28edfb3 100644
+        \\--- a/file.txt
+        \\+++ b/file.txt
+        \\@@ -1,0 +2,3 @@
+        \\+alpha
+        \\+beta
+        \\+gamma
+        \\
+    ;
+
+    var parsed_diff = try diff.parse(allocator, diff_text);
+    defer parsed_diff.deinit(allocator);
+
+    var selection = try ranges.parseRefs(allocator, "3");
+    defer selection.deinit(allocator);
+
+    const built = try patch.build(allocator, parsed_diff, selection, args.Mode.both);
+    defer built.deinit(allocator);
+
+    try std.testing.expectEqual(@as(u32, 1), built.selected_changes);
+    try std.testing.expectEqual(@as(u32, 2), built.skipped_changes);
+    try std.testing.expect(mem.indexOf(u8, built.patch, "+beta") != null);
+    try std.testing.expect(mem.indexOf(u8, built.patch, "+alpha") == null);
+    try std.testing.expect(mem.indexOf(u8, built.patch, "+gamma") == null);
 }

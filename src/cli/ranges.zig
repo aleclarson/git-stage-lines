@@ -41,6 +41,7 @@ pub const Selection = struct {
     old_ranges: []Range,
     new_ranges: []Range,
     normalized: []const u8,
+    exact: bool = false,
 
     pub fn deinit(self: Selection, allocator: mem.Allocator) void {
         allocator.free(self.old_ranges);
@@ -117,6 +118,7 @@ pub fn selectionFromRangeSet(
         .old_ranges = if (include_old) try allocator.dupe(Range, range_set.ranges) else &.{},
         .new_ranges = if (include_new) try allocator.dupe(Range, range_set.ranges) else &.{},
         .normalized = try allocator.dupe(u8, range_set.normalized),
+        .exact = false,
     };
 }
 
@@ -157,6 +159,7 @@ pub fn parseRefs(allocator: mem.Allocator, input: []const u8) RangeError!Selecti
         .old_ranges = try allocator.dupe(Range, old_ranges.items),
         .new_ranges = try allocator.dupe(Range, new_ranges.items),
         .normalized = try normalized.toOwnedSlice(),
+        .exact = true,
     };
 }
 

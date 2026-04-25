@@ -216,7 +216,7 @@ The API returns the same stable JSON result shape as the CLI. Process-level fail
 | `--dry-run` | Print the patch that would be staged. |
 | `--check` | Validate the generated patch without staging it. |
 | `--json` | Print machine-readable output. |
-| `--context N` | Ask Git for `N` context lines. Default: `3`. |
+| `--context N` | Accepted for compatibility. Staging uses zero-context patches internally. |
 | `--allow-empty` | Exit successfully when no matching changes are found. |
 | `--version` | Print the installed version. |
 | `-h`, `--help` | Print CLI help. |

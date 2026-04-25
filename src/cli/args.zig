@@ -59,7 +59,7 @@ pub const StageOptions = struct {
     check: bool = false,
     allow_empty: bool = false,
     verbose: bool = false,
-    context: u32 = 3,
+    context: u32 = 0,
 
     pub fn deinit(self: StageOptions, allocator: mem.Allocator) void {
         self.selection.deinit(allocator);
@@ -94,7 +94,7 @@ fn parseStage(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!S
     var check = false;
     var allow_empty = false;
     var verbose = false;
-    var context: u32 = 3;
+    var context: u32 = 0;
 
     var i: usize = 1;
     while (i < argv.len) : (i += 1) {
@@ -182,7 +182,7 @@ fn parseStageFileRef(allocator: mem.Allocator, argv: []const [:0]const u8) Parse
     var check = false;
     var allow_empty = false;
     var verbose = false;
-    var context: u32 = 3;
+    var context: u32 = 0;
 
     var i: usize = 2;
     while (i < argv.len) : (i += 1) {
@@ -289,7 +289,7 @@ pub const usage =
     \\  --dry-run            Print the patch that would be staged
     \\  --check              Validate the selected patch without staging
     \\  --json               Emit machine-readable JSON
-    \\  --context N          Diff context lines to request from Git (default: 3)
+    \\  --context N          Accepted for compatibility; staging uses zero-context patches
     \\  --allow-empty        Treat no matching changes as a successful noop
     \\  --verbose            Include extra human-readable diagnostics
     \\  --version            Show version

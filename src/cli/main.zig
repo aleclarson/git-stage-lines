@@ -130,7 +130,8 @@ const BytesOutcome = union(enum) {
 fn runStage(allocator: mem.Allocator, io: std.Io, options: args.StageOptions) !RunOutcome {
     if (try ensureGitRepository(allocator, io)) |cli_err| return .{ .failure = cli_err };
 
-    const diff_text = switch (try gitDiffFile(allocator, io, options.file, options.context)) {
+    _ = options.context;
+    const diff_text = switch (try gitDiffFile(allocator, io, options.file, 0)) {
         .data => |data| data,
         .failure => |cli_err| return .{ .failure = cli_err },
     };
@@ -315,8 +316,8 @@ fn gitApply(allocator: mem.Allocator, io: std.Io, patch_text: []const u8, check:
     try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = patch_path, .data = patch_text });
     defer std.Io.Dir.cwd().deleteFile(io, patch_path) catch {};
 
-    const check_argv: []const []const u8 = &.{ "git", "apply", "--cached", "--check", patch_path };
-    const apply_argv: []const []const u8 = &.{ "git", "apply", "--cached", patch_path };
+    const check_argv: []const []const u8 = &.{ "git", "apply", "--cached", "--unidiff-zero", "--check", patch_path };
+    const apply_argv: []const []const u8 = &.{ "git", "apply", "--cached", "--unidiff-zero", patch_path };
     const argv = if (check) check_argv else apply_argv;
 
     var result = runGit(allocator, io, argv) catch |err| switch (err) {
