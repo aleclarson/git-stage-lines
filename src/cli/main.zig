@@ -31,6 +31,10 @@ pub fn main(init: std.process.Init) !void {
             try stdout.writeAll(args.usage);
             return;
         }
+        if (err == error.Version) {
+            try stdout.print("git-stage-lines {s}\n", .{args.version});
+            return;
+        }
         const cli_err = parseErrorToCli(err);
         try emitFailure(allocator, stdout, stderr, false, cli_err, null, null);
         try stdout.flush();
@@ -378,6 +382,7 @@ fn parseErrorToCli(err: args.ParseError) CliError {
         error.ReversedRange => .{ .code = .user_input, .reason = "reversed_range", .message = "range start must be less than or equal to range end" },
         error.OutOfMemory => .{ .code = .user_input, .reason = "out_of_memory", .message = "out of memory" },
         error.Help => unreachable,
+        error.Version => unreachable,
     };
 }
 

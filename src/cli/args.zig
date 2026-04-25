@@ -19,6 +19,7 @@ pub const Mode = enum {
 
 pub const ParseError = error{
     Help,
+    Version,
     MissingFile,
     MissingRanges,
     TooManyPositionals,
@@ -65,6 +66,8 @@ pub fn parse(allocator: mem.Allocator, argv: []const [:0]const u8) ParseError!Op
         const arg = argv[i];
         if (mem.eql(u8, arg, "--help") or mem.eql(u8, arg, "-h")) {
             return error.Help;
+        } else if (mem.eql(u8, arg, "--version")) {
+            return error.Version;
         } else if (mem.eql(u8, arg, "--json")) {
             json = true;
         } else if (mem.eql(u8, arg, "--dry-run")) {
@@ -146,6 +149,9 @@ pub const usage =
     \\  --context N          Diff context lines to request from Git (default: 3)
     \\  --allow-empty        Treat no matching changes as a successful noop
     \\  --verbose            Include extra human-readable diagnostics
+    \\  --version            Show version
     \\  -h, --help           Show this help
     \\
 ;
+
+pub const version = "0.1.0";
