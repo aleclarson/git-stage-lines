@@ -4,7 +4,11 @@ Stage only the changed lines you want.
 
 `git-stage-lines` is a small Git subcommand for precise, line-based staging. It is useful when one file has several unrelated edits and `git add -p` is more interaction than you want.
 
+It also ships a JavaScript/TypeScript package for Node.js and Bun. The package is a thin adapter around the native binary, so scripts and editor integrations can use the same staging behavior as the CLI.
+
 ## Install
+
+### Native CLI
 
 ```sh
 brew install aleclarson/tap/git-stage-lines
@@ -15,6 +19,22 @@ Then run it as a Git command:
 ```sh
 git stage-lines --version
 ```
+
+### JavaScript/TypeScript Package
+
+```sh
+pnpm add git-stage-lines
+```
+
+Equivalent package manager commands:
+
+```sh
+npm install git-stage-lines
+yarn add git-stage-lines
+bun add git-stage-lines
+```
+
+The npm package invokes the native `git-stage-lines` binary. Install the CLI, pass `binaryPath`, set `GIT_STAGE_LINES_BINARY`, or make sure `git-stage-lines` is on `PATH`.
 
 ## Quick Start
 
@@ -111,6 +131,49 @@ Emit JSON for scripts and editor integrations:
 ```sh
 git stage-lines src/app.ts 12-18 --json
 ```
+
+## JavaScript/TypeScript API
+
+```ts
+import { stageLines } from 'git-stage-lines'
+
+const result = await stageLines({
+  cwd: '/path/to/repo',
+  file: 'src/app.ts',
+  ranges: [[12, 18], 27],
+  mode: 'both',
+})
+
+if (result.status === 'error') {
+  throw new Error(result.message)
+}
+```
+
+The adapter also exports sync and convenience helpers:
+
+```ts
+import {
+  checkStageLines,
+  dryRunStageLines,
+  findBinary,
+  stageLinesSync,
+} from 'git-stage-lines'
+```
+
+Useful options:
+
+```ts
+await stageLines({
+  cwd: process.cwd(),
+  file: 'src/app.ts',
+  ranges: '12-18,27',
+  mode: 'both',
+  binaryPath: './zig-out/bin/git-stage-lines',
+  check: true,
+})
+```
+
+The API returns the same stable JSON result shape as the CLI. Process-level failures, missing binaries, and malformed JSON throw `GitStageLinesError`.
 
 ## Options
 
