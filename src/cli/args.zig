@@ -344,6 +344,10 @@ pub const usage =
     \\  git-stage-lines FILE:REFS --json
     \\  git diff --cached -- FILE
     \\
+    \\Example:
+    \\  git-stage-lines diff src/app.ts
+    \\  git-stage-lines src/app.ts:12,-18 --json
+    \\
     \\Generated Output:
     \\  completions SHELL    Print shell completions
     \\  man                  Print a manual page
