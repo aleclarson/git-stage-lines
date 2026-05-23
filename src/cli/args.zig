@@ -357,4 +357,4 @@ pub const usage =
     \\
 ;
 
-pub const version = "0.2.1";
+pub const version = "0.2.2";

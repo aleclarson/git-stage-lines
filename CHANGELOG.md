@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.2 - 2026-05-23
+
+### Documentation
+
+- Added concrete range and line-ref examples to the CLI help output for AI agents and other automation users.
+
 ## 0.2.1 - 2026-04-25
 
 ### Added
