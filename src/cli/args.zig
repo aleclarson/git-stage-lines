@@ -344,7 +344,10 @@ pub const usage =
     \\  git-stage-lines FILE:REFS --json
     \\  git diff --cached -- FILE
     \\
-    \\Example:
+    \\Range Example:
+    \\  git-stage-lines src/app.ts 12-18,27 --mode both --json
+    \\
+    \\Line Ref Example:
     \\  git-stage-lines diff src/app.ts
     \\  git-stage-lines src/app.ts:12,-18 --json
     \\
